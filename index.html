@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hybrid Voice & Type Calc</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .mic-active {
+            animation: pulse 1.5s infinite;
+            background-color: #ef4444 !important;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { transform: scale(1.1); box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+    </style>
+</head>
+<body class="bg-[#0f172a] flex items-center justify-center min-h-screen font-sans px-4">
+
+    <div class="bg-[#1e293b] p-8 rounded-[2.5rem] shadow-2xl w-full max-w-sm border border-slate-700">
+        
+        <div class="mb-6">
+            <div id="status" class="text-sky-400 text-xs font-bold mb-2 uppercase tracking-widest text-center">Ready</div>
+            <div class="bg-[#0f172a] p-6 rounded-2xl border border-slate-700 shadow-inner">
+                <input type="text" id="calcInput" 
+                       class="w-full bg-transparent text-white text-3xl font-mono font-bold text-right outline-none placeholder-gray-700" 
+                       placeholder="0" autofocus>
+                <div id="resultLabel" class="text-gray-500 text-sm text-right mt-2 h-5">Result will appear here</div>
+            </div>
+        </div>
+
+        <p class="text-gray-400 text-[10px] text-center mb-6 uppercase tracking-tighter">
+            Type your math or click the mic to speak
+        </p>
+
+        <div class="flex items-center justify-between gap-4">
+            <button onclick="clearAll()" class="bg-slate-700 hover:bg-slate-600 text-white font-bold py-4 px-6 rounded-2xl transition-all">
+                C
+            </button>
+
+            <button id="micBtn" class="bg-sky-500 w-20 h-20 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-105 shadow-lg shadow-sky-500/20">
+                <svg id="micIcon" xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-20a3 3 0 00-3 3v8a3 3 0 006 0V5a3 3 0 00-3-3z" />
+                </svg>
+            </button>
+
+            <button onclick="manualCalculate()" class="bg-sky-500 hover:bg-sky-400 text-white font-bold py-4 px-6 rounded-2xl transition-all shadow-lg shadow-sky-500/10">
+                =
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const calcInput = document.getElementById('calcInput');
+        const resultLabel = document.getElementById('resultLabel');
+        const micBtn = document.getElementById('micBtn');
+        const status = document.getElementById('status');
+
+        // Function to perform Math
+        function solve(equation) {
+            try {
+                // Cleaning the string to prevent XSS and handle words
+                let cleanExp = equation.toLowerCase()
+                    .replace(/plus/g, '+')
+                    .replace(/minus/g, '-')
+                    .replace(/into|times|x|multiplied by/g, '*')
+                    .replace(/divided by/g, '/')
+                    .replace(/[^-()\d/*+.]/g, ''); // Remove non-math characters
+                
+                const result = eval(cleanExp);
+                return result;
+            } catch (e) {
+                return "Error";
+            }
+        }
+
+        // 1. Manual Typing Logic
+        calcInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                manualCalculate();
+            }
+        });
+
+        function manualCalculate() {
+            const res = solve(calcInput.value);
+            resultLabel.innerText = `Result: ${res}`;
+            calcInput.value = res;
+        }
+
+        function clearAll() {
+            calcInput.value = "";
+            resultLabel.innerText = "Cleared";
+            status.innerText = "Ready";
+        }
+
+        // 2. Voice Recognition Logic
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+        if (SpeechRecognition) {
+            const recognition = new SpeechRecognition();
+            
+            micBtn.onclick = () => {
+                recognition.start();
+                status.innerText = "Listening...";
+                micBtn.classList.add('mic-active');
+            };
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                calcInput.value = transcript;
+                const res = solve(transcript);
+                resultLabel.innerText = `Voice Result: ${res}`;
+                calcInput.value = res;
+                status.innerText = "Finished";
+                micBtn.classList.remove('mic-active');
+            };
+
+            recognition.onspeechend = () => {
+                recognition.stop();
+                micBtn.classList.remove('mic-active');
+            };
+
+            recognition.onerror = () => {
+                status.innerText = "Error: Didn't hear you";
+                micBtn.classList.remove('mic-active');
+            };
+        } else {
+            status.innerText = "Voice not supported";
+            micBtn.style.opacity = "0.5";
+        }
+    </script>
+</body>
+</html>
